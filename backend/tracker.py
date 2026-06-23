@@ -2,6 +2,7 @@ import os
 import json
 import time
 import sqlite3
+import numpy as np
 from datetime import datetime, timedelta
 
 # Paths
@@ -246,6 +247,15 @@ class AttendanceTracker:
                 print(f"Error cleaning feature cache npz: {e}")
                 
         return True, "Student deleted successfully."
+
+    def get_student_name(self, student_id):
+        """Get student's display name from their ID."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM students WHERE id = ?", (student_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return row[0] if row else None
 
     def get_students(self):
         """Get list of registered students with face image counts."""

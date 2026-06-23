@@ -241,8 +241,7 @@ class VideoCamera:
                         # Log presence
                         self.tracker.update_presence(name)
                         # Retrieve display name if available in tracker
-                        student_info = self.tracker.students.get(name.lower().replace(" ", "_"))
-                        display_name = student_info["name"] if student_info else name
+                        display_name = self.tracker.get_student_name(name) or name
                         label = f"{display_name} ({int(conf * 100)}%)"
                         box_color = (88, 209, 48)  # Apple Green BGR (Emerald)
                     else:
