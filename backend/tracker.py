@@ -32,12 +32,15 @@ class AttendanceTracker:
         # Migrate legacy data from JSON if it exists
         self.migrate_legacy_data()
 
-    def init_db(self):
+    def get_connection(self):
+        """Create database connection and enable foreign keys constraint checking."""
         conn = sqlite3.connect(self.db_path)
+        conn.execute("PRAGMA foreign_keys = ON;")
+        return conn
+
+    def init_db(self):
+        conn = self.get_connection()
         cursor = conn.cursor()
-        
-        # Enable foreign key support
-        cursor.execute("PRAGMA foreign_keys = ON;")
         
         # Create students table
         cursor.execute("""
@@ -64,6 +67,9 @@ class AttendanceTracker:
             );
         """)
         
+        # Clean up any orphaned attendance logs that might have been left over due to disabled foreign keys earlier
+        cursor.execute("DELETE FROM attendance WHERE student_id NOT IN (SELECT id FROM students);")
+        
         conn.commit()
         conn.close()
 
@@ -76,7 +82,7 @@ class AttendanceTracker:
             try:
                 students_data = load_json(students_json_path, {})
                 
-                conn = sqlite3.connect(self.db_path)
+                conn = self.get_connection()
                 cursor = conn.cursor()
                 for s_id, s_info in students_data.items():
                     cursor.execute(
@@ -95,7 +101,7 @@ class AttendanceTracker:
             try:
                 attendance_data = load_json(attendance_json_path, {})
                 
-                conn = sqlite3.connect(self.db_path)
+                conn = self.get_connection()
                 cursor = conn.cursor()
                 for date_str, date_sheet in attendance_data.items():
                     try:
@@ -138,7 +144,7 @@ class AttendanceTracker:
     def register_student(self, student_name):
         """Register a new student with a unique ID."""
         student_id = student_name.lower().replace(" ", "_")
-        conn = sqlite3.connect(self.db_path)
+        conn = self.get_connection()
         cursor = conn.cursor()
         
         cursor.execute("SELECT id FROM students WHERE id = ?", (student_id,))
@@ -162,7 +168,7 @@ class AttendanceTracker:
         if not student_id.strip():
             return False, "Invalid name."
             
-        conn = sqlite3.connect(self.db_path)
+        conn = self.get_connection()
         cursor = conn.cursor()
         
         cursor.execute("SELECT id FROM students WHERE id = ?", (student_id,))
@@ -181,7 +187,7 @@ class AttendanceTracker:
 
     def update_student(self, student_id, new_name):
         """CRUD Update: Update a student's name"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self.get_connection()
         cursor = conn.cursor()
         
         cursor.execute("SELECT id FROM students WHERE id = ?", (student_id,))
@@ -197,7 +203,7 @@ class AttendanceTracker:
 
     def delete_student(self, student_id):
         """CRUD Delete: Delete a student and their face images directory"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self.get_connection()
         cursor = conn.cursor()
         
         cursor.execute("SELECT id FROM students WHERE id = ?", (student_id,))
@@ -250,7 +256,7 @@ class AttendanceTracker:
 
     def get_student_name(self, student_id):
         """Get student's display name from their ID."""
-        conn = sqlite3.connect(self.db_path)
+        conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM students WHERE id = ?", (student_id,))
         row = cursor.fetchone()
@@ -259,7 +265,7 @@ class AttendanceTracker:
 
     def get_students(self):
         """Get list of registered students with face image counts."""
-        conn = sqlite3.connect(self.db_path)
+        conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT id, name, registered_at FROM students ORDER BY name ASC")
         rows = cursor.fetchall()
@@ -291,7 +297,7 @@ class AttendanceTracker:
         if not date_str:
             date_str = datetime.now().strftime("%Y-%m-%d")
             
-        conn = sqlite3.connect(self.db_path)
+        conn = self.get_connection()
         cursor = conn.cursor()
         
         # Ensure student exists in DB
@@ -349,7 +355,7 @@ class AttendanceTracker:
             
         current_time = time.time()
         
-        conn = sqlite3.connect(self.db_path)
+        conn = self.get_connection()
         cursor = conn.cursor()
         
         # If check-in was manual, elapsed check is bypassed
@@ -377,7 +383,7 @@ class AttendanceTracker:
         if date_str == today_str:
             self.clean_statuses(date_str)
             
-        conn = sqlite3.connect(self.db_path)
+        conn = self.get_connection()
         cursor = conn.cursor()
         
         cursor.execute("SELECT id, name FROM students ORDER BY name ASC")
@@ -433,7 +439,7 @@ class AttendanceTracker:
         Manually override a student's attendance status for a given date.
         status: 'Present' or 'Absent'
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = self.get_connection()
         cursor = conn.cursor()
         
         # Check student exists
@@ -474,7 +480,7 @@ class AttendanceTracker:
 
     def get_attendance_dates(self):
         """Get sorted list of all dates that have attendance logs."""
-        conn = sqlite3.connect(self.db_path)
+        conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT DISTINCT date FROM attendance ORDER BY date DESC")
         dates = [row[0] for row in cursor.fetchall()]
@@ -489,19 +495,19 @@ class AttendanceTracker:
         """
         Compute dashboard KPIs and data points for Chart.js.
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = self.get_connection()
         cursor = conn.cursor()
         
         cursor.execute("SELECT COUNT(*) FROM students")
         total_students = cursor.fetchone()[0]
         
         today_str = datetime.now().strftime("%Y-%m-%d")
-        cursor.execute("SELECT COUNT(*) FROM attendance WHERE date = ?", (today_str,))
+        cursor.execute("SELECT COUNT(*) FROM attendance WHERE date = ? AND student_id IN (SELECT id FROM students)", (today_str,))
         today_present = cursor.fetchone()[0]
         
         today_rate = round((today_present / total_students * 100), 1) if total_students > 0 else 0.0
         
-        cursor.execute("SELECT COUNT(*) FROM attendance WHERE date = ? AND status = 'Away'", (today_str,))
+        cursor.execute("SELECT COUNT(*) FROM attendance WHERE date = ? AND status = 'Away' AND student_id IN (SELECT id FROM students)", (today_str,))
         today_away = cursor.fetchone()[0]
         
         weekly_labels = []
@@ -512,12 +518,12 @@ class AttendanceTracker:
             d_label = date_dt.strftime("%a (%m/%d)")
             weekly_labels.append(d_label)
             
-            cursor.execute("SELECT COUNT(*) FROM attendance WHERE date = ?", (d_str,))
+            cursor.execute("SELECT COUNT(*) FROM attendance WHERE date = ? AND student_id IN (SELECT id FROM students)", (d_str,))
             count = cursor.fetchone()[0]
             weekly_data.append(count)
             
         hourly_counts = [0] * 24
-        cursor.execute("SELECT check_in FROM attendance WHERE check_in != 'Manual Override'")
+        cursor.execute("SELECT check_in FROM attendance WHERE check_in != 'Manual Override' AND student_id IN (SELECT id FROM students)")
         rows = cursor.fetchall()
         for r in rows:
             check_in_time = r[0]
@@ -558,7 +564,7 @@ class AttendanceTracker:
     def reset_session(self):
         """Reset the attendance logs for the current day only."""
         today_str = datetime.now().strftime("%Y-%m-%d")
-        conn = sqlite3.connect(self.db_path)
+        conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute("DELETE FROM attendance WHERE date = ?", (today_str,))
         conn.commit()
