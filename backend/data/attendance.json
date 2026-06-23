@@ -1,0 +1,40 @@
+{
+    "2026-06-24": {
+        "test_student": {
+            "id": "test_student",
+            "name": "Test Student",
+            "check_in": "2026-06-24 02:48:26",
+            "last_seen": "2026-06-24 03:14:14",
+            "last_seen_epoch": 1782251054.487583,
+            "total_seconds": 379.90359568595886,
+            "status": "Active"
+        },
+        "satyam_rana": {
+            "id": "satyam_rana",
+            "name": "Satyam Rana",
+            "check_in": "2026-06-24 02:48:49",
+            "last_seen": "2026-06-24 03:12:22",
+            "last_seen_epoch": 1782250942.709163,
+            "total_seconds": 182.84986472129822,
+            "status": "Away"
+        },
+        "ap": {
+            "id": "ap",
+            "name": "ap",
+            "check_in": "2026-06-24 02:51:45",
+            "last_seen": "2026-06-24 03:14:18",
+            "last_seen_epoch": 1782251058.326818,
+            "total_seconds": 1007.6820437908173,
+            "status": "Active"
+        },
+        "og": {
+            "id": "og",
+            "name": "og",
+            "check_in": "2026-06-24 02:52:09",
+            "last_seen": "2026-06-24 03:14:17",
+            "last_seen_epoch": 1782251057.598189,
+            "total_seconds": 43.505252838134766,
+            "status": "Active"
+        }
+    }
+}

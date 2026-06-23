@@ -1,0 +1,22 @@
+{
+    "test_student": {
+        "id": "test_student",
+        "name": "Test Student",
+        "registered_at": "2026-06-23T20:24:44.713123"
+    },
+    "satyam_rana": {
+        "id": "satyam_rana",
+        "name": "Satyam Rana",
+        "registered_at": "2026-06-23T20:32:49.272388"
+    },
+    "ap": {
+        "id": "ap",
+        "name": "ap",
+        "registered_at": "2026-06-24T02:51:26.055067"
+    },
+    "og": {
+        "id": "og",
+        "name": "og",
+        "registered_at": "2026-06-24T02:52:01.494783"
+    }
+}
